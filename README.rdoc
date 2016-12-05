@@ -1,0 +1,48 @@
+= sequel-unsplit
+This is a simple tool for converting a project that uses Sequel
+from splitting symbols to not splitting symbols.  It's designed
+for use when setting:
+
+  Sequel.split_symbols = false
+
+== Usage
+
+The tool takes a given path, which can be a directory, and modifies
+all *.rb files under the path to split the symbols, so that Sequel
+doesn't need to split symbols at runtime.  For example, for a file
+containing:
+
+  :c
+  :t__c
+  :c___a
+  :t__c___a
+
+sequel-unsplit will convert it by default to:
+
+  :c
+  Sequel[:t][:c]
+  Sequel[:c].as(:a)
+  Sequel[:t][:c].as(:a)
+
+sequel-unsplit also supports converting to syntax that requires the use
+of extensions/refinements, or alternate APIs.  Usage:
+
+  Usage: sequel-unsplit [options] [path] ...
+  Options:
+    -a                               Assume use of symbol_aref extension/refinement
+    -A                               Use Sequel.as(:col, :alias) for :col___alias
+    -q                               Use Sequel.qualify(:col, :alias) instead of Sequel[:col][:alias]
+    -s                               Assume use of symbol_as extension/refinement
+    -S                               Assume use of s extension/refinement
+    -h, -?, --help                   Show this message
+
+For example, sequel-unsplit -as will convert the above source file to:
+
+  :c
+  :t[:c]
+  :c.as(:a)
+  :t[:c].as(:a)
+
+== Author
+
+Jeremy Evans <code@jeremyevans.net>

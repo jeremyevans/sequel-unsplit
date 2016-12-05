@@ -1,0 +1,99 @@
+#!/usr/bin/env ruby
+
+require 'sequel'
+require 'optparse'
+require 'find'
+
+aref = false
+qualify = false
+as = false
+sas = false
+s = false
+
+options = OptionParser.new do |opts|
+  opts.banner = "Usage: sequel-unsplit [options] [path] ..."
+  opts.separator "Options:"
+
+  opts.on_tail("-h", "-?", "--help", "Show this message") do
+    puts opts
+    exit
+  end
+
+  opts.on("-a", "Assume use of symbol_aref extension/refinement") do
+    aref = true
+  end
+
+  opts.on("-A", "Use Sequel.as(:col, :alias) for :col___alias") do
+    sas = true
+  end
+
+  opts.on("-q", "Use Sequel.qualify(:col, :alias) instead of Sequel[:col][:alias]") do
+    qualify = true
+  end
+
+  opts.on("-s", "Assume use of symbol_as extension/refinement") do
+    as = true
+  end
+
+  opts.on("-S", "Assume use of s extension/refinement") do
+    s = true
+  end
+end
+options.parse!
+
+quote_symbol = lambda do |s, q|
+  ":#{q}#{s}#{q}"
+end
+  
+ARGV.each do |root|
+  Find.find(root) do |file|
+    next unless File.file?(file)
+    next unless file.end_with?('.rb')
+    text = File.binread(file)
+    changed = text.gsub!(/:(['"]?)([a-zA-Z0-9_]+)\1/) do |sym|
+      next sym unless sym.include?('__')
+      q = $1
+      t, c, a = Sequel.split_symbol($2)
+      next sym unless t || a
+      c = quote_symbol.call(c, q)
+
+      base = if t
+        t = quote_symbol.call(t, q)
+
+        if aref
+          "#{t}[#{c}]"
+        elsif s
+          "S(#{t})[#{c}]"
+        elsif qualify
+          "Sequel.qualify(#{t}, #{c})"
+        else
+          "Sequel[#{t}][#{c}]"
+        end
+      elsif a
+        if as || (!t && sas)
+          c
+        elsif s
+          "S(#{c})"
+        else
+          "Sequel[#{c}]"
+        end
+      end
+
+      if a
+        a = quote_symbol.call(a, q)
+
+        if !as && !t && sas
+          "Sequel.as(#{base}, #{a})"
+        else
+          "#{base}.as(#{a})"
+        end
+      else
+        base
+      end
+    end
+
+    if changed
+      File.write(file, text)
+    end
+  end
+end
