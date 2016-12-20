@@ -48,7 +48,7 @@ end
 ARGV.each do |root|
   Find.find(root) do |file|
     next unless File.file?(file)
-    next unless file.end_with?('.rb')
+    next unless file =~ /\.(rb|erb|rbw|rhtml)\z/
     text = File.binread(file)
     changed = text.gsub!(/:(['"]?)([a-zA-Z0-9_]+)\1/) do |sym|
       next sym unless sym.include?('__')
