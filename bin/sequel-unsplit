@@ -44,56 +44,66 @@ options.parse!
 quote_symbol = lambda do |s, q|
   ":#{q}#{s}#{q}"
 end
-  
+ 
+files = []
+
 ARGV.each do |root|
-  Find.find(root) do |file|
-    next unless File.file?(file)
-    next unless file =~ /\.(rb|erb|rbw|rhtml)\z/
-    text = File.binread(file)
-    changed = text.gsub!(/:(['"]?)([a-zA-Z0-9_]+)\1/) do |sym|
-      next sym unless sym.include?('__')
-      q = $1
-      t, c, a = Sequel.split_symbol($2)
-      next sym unless t || a
-      c = quote_symbol.call(c, q)
+  if File.directory?(root)
+    Find.find(root) do |file|
+      next unless File.file?(file)
+      next unless file =~ /\.(rb|erb|rbw|rhtml)\z/
+      files << file
+    end
+  else
+    files << root
+  end
+end
 
-      base = if t
-        t = quote_symbol.call(t, q)
+files.each do |file|
+  text = File.binread(file)
+  changed = text.gsub!(/:(['"]?)([a-zA-Z0-9_]+)\1/) do |sym|
+    next sym unless sym.include?('__')
+    q = $1
+    t, c, a = Sequel.split_symbol($2)
+    next sym unless t || a
+    c = quote_symbol.call(c, q)
 
-        if aref
-          "#{t}[#{c}]"
-        elsif s
-          "S(#{t})[#{c}]"
-        elsif qualify
-          "Sequel.qualify(#{t}, #{c})"
-        else
-          "Sequel[#{t}][#{c}]"
-        end
-      elsif a
-        if as || (!t && sas)
-          c
-        elsif s
-          "S(#{c})"
-        else
-          "Sequel[#{c}]"
-        end
-      end
+    base = if t
+      t = quote_symbol.call(t, q)
 
-      if a
-        a = quote_symbol.call(a, q)
-
-        if !as && !t && sas
-          "Sequel.as(#{base}, #{a})"
-        else
-          "#{base}.as(#{a})"
-        end
+      if aref
+        "#{t}[#{c}]"
+      elsif s
+        "S(#{t})[#{c}]"
+      elsif qualify
+        "Sequel.qualify(#{t}, #{c})"
       else
-        base
+        "Sequel[#{t}][#{c}]"
+      end
+    elsif a
+      if as || (!t && sas)
+        c
+      elsif s
+        "S(#{c})"
+      else
+        "Sequel[#{c}]"
       end
     end
 
-    if changed
-      File.write(file, text)
+    if a
+      a = quote_symbol.call(a, q)
+
+      if !as && !t && sas
+        "Sequel.as(#{base}, #{a})"
+      else
+        "#{base}.as(#{a})"
+      end
+    else
+      base
     end
+  end
+
+  if changed
+    File.write(file, text)
   end
 end
