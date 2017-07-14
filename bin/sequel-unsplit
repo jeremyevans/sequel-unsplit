@@ -4,6 +4,8 @@ require 'sequel'
 require 'optparse'
 require 'find'
 
+Sequel.split_symbols = true
+
 aref = false
 qualify = false
 as = false
@@ -61,10 +63,11 @@ end
 
 files.each do |file|
   text = File.binread(file)
-  changed = text.gsub!(/:(['"]?)([a-zA-Z0-9_]+)\1/) do |sym|
+  changed = text.gsub!(/(?::(['"]?)([a-zA-Z0-9_]+)\1)|(?:\b([a-zA-Z0-9_]+): )/) do |sym|
     next sym unless sym.include?('__')
+    hash_key = $3
     q = $1
-    t, c, a = Sequel.split_symbol($2)
+    t, c, a = Sequel.split_symbol($2||$3)
     next sym unless t || a
     c = quote_symbol.call(c, q)
 
@@ -93,14 +96,18 @@ files.each do |file|
     if a
       a = quote_symbol.call(a, q)
 
-      if !as && !t && sas
+      base = if !as && !t && sas
         "Sequel.as(#{base}, #{a})"
       else
         "#{base}.as(#{a})"
       end
-    else
-      base
     end
+
+    if hash_key
+      base = "#{base} => "
+    end
+
+    base
   end
 
   if changed

@@ -24,6 +24,15 @@ sequel-unsplit will convert it by default to:
   Sequel[:c].as(:a)
   Sequel[:t][:c].as(:a)
 
+sequel-unsplit also handles ruby 1.9 symbol hash keys, so sequel-unsplit
+will convert:
+
+  {c: 1, t__c: 2, c___a: 3, t__c___a: 4}
+
+to:
+
+  {c: 1, Sequel[:t][:c] => 2, Sequel[:c].as(:a) => 3, Sequel[:t][:c].as(:a) => 4}
+
 sequel-unsplit also supports converting to syntax that requires the use
 of extensions/refinements, or alternate APIs.  Usage:
 
