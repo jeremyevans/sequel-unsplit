@@ -31,7 +31,7 @@ describe "sequel-unsplit" do
       end
 
       system(*args)
-      File.read(result).must_equal File.read(expected)
+      assert_equal File.read(expected), File.read(result)
     end
   end
 end
